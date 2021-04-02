@@ -6,8 +6,20 @@ Parameters:
   VpcCidr:
     Type: String
     Default: "10.0.0.0/16"
-    Description: the VPC cidr block
+    Description: What is the cidr block for the master VPC?
     AllowedPattern: ^([0-9]{1,3}\.){3}([0-9]{1,3})\/[0-9]{1,2}$
+  NumberOfAZs:
+    Type: Number
+    Default: 1
+    Description: How many AZs do you want to utilize (1-3) ?
+    AllowedValues:
+      - 1
+      - 2
+      - 3
+
+Conditions:
+  BuildB: !Not [!Equals [!Ref NumberOfAZs, 1]]
+  BuildC: !Equals [!Ref NumberOfAZs, 3]
 
 Resources:
   MasterVpc:
@@ -32,14 +44,71 @@ Resources:
       VpcId: !Ref MasterVpc
       InternetGatewayId: !Ref MasterInternetGateway
 
-  MasterSubnet1:
+  MasterInternetRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MasterVpc
+      Tags:
+        - Key: Name
+          Value: Master-Internet-RT
+  MasterInternetRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref MasterInternetRT
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref MasterInternetGateway
+
+  MasterSubnetA:
     Type: AWS::EC2::Subnet
     Properties:
       AvailabilityZone: !Select
         - 0
         - Fn::GetAZs: !Ref "AWS::Region"
       VpcId: !Ref MasterVpc
-      CidrBlock: !Select [1, !Cidr [!Ref VpcCidr, 2, 8]]
+      CidrBlock: !Select [1, !Cidr [!GetAtt MasterVpc.CidrBlock, 2, 8]]
       Tags:
         - Key: Name
           Value: MasterVpc-Subnet1
+  MasterSubnetARTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MasterSubnetA
+      RouteTableId: !Ref MasterInternetRT
+
+  MasterSubnetB:
+    Type: AWS::EC2::Subnet
+    Condition: BuildB
+    Properties:
+      AvailabilityZone: !Select
+        - 1
+        - Fn::GetAZs: !Ref "AWS::Region"
+      VpcId: !Ref MasterVpc
+      CidrBlock: !Select [2, !Cidr [!GetAtt MasterVpc.CidrBlock, 3, 8]]
+      Tags:
+        - Key: Name
+          Value: MasterVpc-Subnet2
+  MasterSubnetBRTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: BuildB
+    Properties:
+      SubnetId: !Ref MasterSubnetB
+      RouteTableId: !Ref MasterInternetRT
+
+  MasterSubnetC:
+    Type: AWS::EC2::Subnet
+    Condition: BuildC
+    Properties:
+      AvailabilityZone: !Select
+        - 2
+        - Fn::GetAZs: !Ref "AWS::Region"
+      VpcId: !Ref MasterVpc
+      CidrBlock: !Select [3, !Cidr [!GetAtt MasterVpc.CidrBlock, 4, 8]]
+      Tags:
+        - Key: Name
+          Value: MasterVpc-Subnet3
+  MasterSubnetCRTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: BuildC
+    Properties:
+      SubnetId: !Ref MasterSubnetC
+      RouteTableId: !Ref MasterInternetRT
