@@ -112,3 +112,26 @@ Resources:
     Properties:
       SubnetId: !Ref MasterSubnetC
       RouteTableId: !Ref MasterInternetRT
+
+Outputs:
+  VpcId:
+    Description: The Vpc ID
+    Value: !Ref MasterVpc
+    Export:
+      Name: !Sub "${AWS::StackName}-VPCID"
+  SubnetIds:
+    Description: The full list of subnet ids
+    Value: !Join
+      - ","
+      - Fn::If:
+          - BuildC
+          - - !Ref MasterSubnetA
+            - !Ref MasterSubnetB
+            - !Ref MasterSubnetC
+          - !If
+            - BuildB
+            - - !Ref MasterSubnetA
+              - !Ref MasterSubnetB
+            - - !Ref MasterSubnetA
+    Export:
+      Name: !Sub ${AWS::StackName}-SubnetIds

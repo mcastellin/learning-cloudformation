@@ -1,5 +1,13 @@
 [
     {
+        "ParameterKey": "TemplatesBucket",
+        "ParameterValue": "mycloudformationbucket1234"
+    },
+    {
+        "ParameterKey": "AdminKeyPairName",
+        "ParameterValue": "jenkins-admin-key"
+    },
+    {
         "ParameterKey": "NumberOfAZs",
         "ParameterValue": "2"
     }

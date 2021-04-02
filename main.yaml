@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  This is the master template definition
+
+Parameters:
+  TemplatesBucket:
+    Type: String
+    Description: What is the name of the S3 buckets containing children templates?
+  AdminKeyPairName:
+    Type: String
+    Description: The name of the key-pair to be used for administration
+  VpcCidr:
+    Type: String
+    Default: "10.0.0.0/16"
+    Description: What is the cidr block for the master VPC?
+    AllowedPattern: ^([0-9]{1,3}\.){3}([0-9]{1,3})\/[0-9]{1,2}$
+  NumberOfAZs:
+    Type: Number
+    Default: 1
+    Description: How many AZs do you want to utilise (1-3) ?
+    AllowedValues:
+      - 1
+      - 2
+      - 3
+
+Resources:
+  VPC:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucket}.s3.amazonaws.com/vpc.yaml"
+      Parameters:
+        VpcCidr: !Ref VpcCidr
+        NumberOfAZs: !Ref NumberOfAZs
+      TimeoutInMinutes: 2
+
+  JenkinsMaster:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucket}.s3.amazonaws.com/jenkins.yaml"
+      Parameters:
+        KeyPairName: !Ref AdminKeyPairName
+        VpcId: !GetAtt VPC.Outputs.VpcId
+        SubnetIds: !GetAtt VPC.Outputs.SubnetIds
+        AssignPublicIp: true
+      TimeoutInMinutes: 10
+
+Outputs:
+  MasterPublicIp:
+    Description: The public ip address of the Jenkins master instance, if assigned.
+    Value: !GetAtt JenkinsMaster.Outputs.MasterPublicIp
