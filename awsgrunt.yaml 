@@ -1,5 +1,0 @@
----
-BucketName: mycloudformationstorage1234
-Templates:
-  - vpc.yaml
-  - jenkins.yaml
