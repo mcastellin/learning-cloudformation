@@ -27,7 +27,7 @@ Resources:
   VPC:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://${TemplatesBucket}.s3.amazonaws.com/vpc.yaml"
+      TemplateURL: !Sub "https://${TemplatesBucket}.s3.amazonaws.com/templates/vpc.yaml"
       Parameters:
         VpcCidr: !Ref VpcCidr
         NumberOfAZs: !Ref NumberOfAZs
@@ -35,14 +35,30 @@ Resources:
 
   JenkinsMaster:
     Type: AWS::CloudFormation::Stack
+    DependsOn: VPC
     Properties:
-      TemplateURL: !Sub "https://${TemplatesBucket}.s3.amazonaws.com/jenkins.yaml"
+      TemplateURL: !Sub "https://${TemplatesBucket}.s3.amazonaws.com/templates/jenkins-master.yaml"
       Parameters:
         KeyPairName: !Ref AdminKeyPairName
         VpcId: !GetAtt VPC.Outputs.VpcId
         SubnetIds: !GetAtt VPC.Outputs.SubnetIds
         AssignPublicIp: true
+        CreateWorkersSecGroup: true
       TimeoutInMinutes: 10
+
+  JenkinsWorkers:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: JenkinsMaster
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucket}.s3.amazonaws.com/templates/jenkins-workers.yaml"
+      Parameters:
+        KeyPairName: !Ref AdminKeyPairName
+        VpcId: !GetAtt VPC.Outputs.VpcId
+        SubnetIds: !GetAtt VPC.Outputs.SubnetIds
+        AssignPublicIp: true
+        WorkersSecGroupId: !GetAtt JenkinsMaster.Outputs.WorkersSecGroupId
+        MasterPrivateIp: !GetAtt JenkinsMaster.Outputs.MasterPrivateIp
+        WorkersCount: 1
 
 Outputs:
   MasterPublicIp:

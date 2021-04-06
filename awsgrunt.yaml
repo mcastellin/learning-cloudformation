@@ -3,8 +3,9 @@ BucketName: mycloudformationstorage1234
 StackName: MyCompanyStack
 StackTemplateFile: main.yaml
 TemplateFiles:
-  - vpc.yaml
-  - jenkins.yaml
+  - templates/vpc.yaml
+  - templates/jenkins-master.yaml
+  - templates/jenkins-workers.yaml
 Parameters:
   AdminKeyPairName: jenkins-admin-key
   NumberOfAZs: 2

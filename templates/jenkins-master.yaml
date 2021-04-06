@@ -35,6 +35,13 @@ Parameters:
     Type: Number
     Description: Which is the Jenkins application port for the master node?
     Default: 8080
+  CreateWorkersSecGroup:
+    Type: String
+    Description: Should security groups be created to wire worker nodes to this master instance?
+    Default: false
+    AllowedValues:
+      - true
+      - false
   AdminPort:
     Type: Number
     Description: Which port should be used for administration?
@@ -47,6 +54,7 @@ Parameters:
 
 Conditions:
   PublicIpAssigned: !Equals [!Ref AssignPublicIp, "true"]
+  CreateWorkersSecGroup: !Equals [!Ref CreateWorkersSecGroup, "true"]
 
 Resources:
   LBSecurityGroup:
@@ -91,6 +99,39 @@ Resources:
           ToPort: 0
           CidrIp: 0.0.0.0/0
 
+  SecGroupIngressFromWorkers:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: CreateWorkersSecGroup
+    Properties:
+      GroupId: !Ref JenkinsMasterSecurityGroup
+      Description: On condition accept all traffic from worker nodes
+      IpProtocol: "-1"
+      FromPort: 0
+      ToPort: 0
+      SourceSecurityGroupId: !Ref JenkinsWorkersSecGroup
+
+  JenkinsWorkersSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: CreateWorkersSecGroup
+    Properties:
+      GroupName: jenkins-workers-sg
+      GroupDescription: A security group to allow Jenkins workers to communicate with master
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: "-1"
+          FromPort: 0
+          ToPort: 0
+          SourceSecurityGroupId: !Ref JenkinsMasterSecurityGroup
+        - IpProtocol: tcp
+          FromPort: !Ref AdminPort
+          ToPort: !Ref AdminPort
+          CidrIp: !Ref ExternalIp
+      SecurityGroupEgress:
+        - IpProtocol: "tcp"
+          FromPort: 0
+          ToPort: 0
+          CidrIp: 0.0.0.0/0
+
   JenkinsMasterInstance:
     Type: AWS::EC2::Instance
     Properties:
@@ -124,3 +165,10 @@ Outputs:
       - PublicIpAssigned
       - !GetAtt JenkinsMasterInstance.PublicIp
       - "-"
+  MasterPrivateIp:
+    Description: The private ip addr of the Jenkins master node
+    Value: !GetAtt JenkinsMasterInstance.PrivateIp
+
+  WorkersSecGroupId:
+    Condition: CreateWorkersSecGroup
+    Value: !GetAtt JenkinsWorkersSecGroup.GroupId
