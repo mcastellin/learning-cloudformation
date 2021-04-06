@@ -127,7 +127,7 @@ Resources:
           ToPort: !Ref AdminPort
           CidrIp: !Ref ExternalIp
       SecurityGroupEgress:
-        - IpProtocol: "tcp"
+        - IpProtocol: "-1"
           FromPort: 0
           ToPort: 0
           CidrIp: 0.0.0.0/0
@@ -158,6 +158,51 @@ Resources:
         - Key: Name
           Value: Jenkins-Master
 
+  JenkinsLB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: Jenkins-LB
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref LBSecurityGroup
+      Subnets: !Ref SubnetIds
+      Type: application
+
+  JenkinsMasterTG:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref VpcId
+      Name: Jenkins-TG
+      Port: !Ref ApplicationPort
+      Protocol: HTTP
+      TargetType: instance
+      HealthCheckEnabled: True
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /login
+      HealthCheckPort: !Ref ApplicationPort
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 10
+      Matcher:
+        HttpCode: 200-299
+      Targets:
+        - Id: !Ref JenkinsMasterInstance
+          Port: !Ref ApplicationPort
+
+  HttpListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          ForwardConfig:
+            TargetGroups:
+              - TargetGroupArn: !Ref JenkinsMasterTG
+                Weight: 1
+      LoadBalancerArn: !Ref JenkinsLB
+      Port: 80
+      Protocol: HTTP
+
 Outputs:
   MasterPublicIp:
     Description: The public ip of the Jenkins master instance, if assigned.
@@ -171,4 +216,9 @@ Outputs:
 
   WorkersSecGroupId:
     Condition: CreateWorkersSecGroup
+    Description: The security group for Jenkins worker nodes
     Value: !GetAtt JenkinsWorkersSecGroup.GroupId
+
+  LoadBalancerURL:
+    Description: The public URL for the application load balancer
+    Value: !GetAtt JenkinsLB.DNSName
