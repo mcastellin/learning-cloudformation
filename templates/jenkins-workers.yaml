@@ -4,6 +4,9 @@ Description: >-
   Jenkins master server.
 
 Parameters:
+  LambdasBucketName:
+    Type: String
+    Description: The s3 bucket containing packaged lambda functions
   KeyPairName:
     Type: String
     Description: What is the name of the keypair to use for ssh access?
@@ -63,6 +66,39 @@ Conditions:
   PublicIpAssigned: !Equals [!Ref AssignPublicIp, "true"]
 
 Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  AutoscalingValuesFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: A lambda function to calculate the min and max values of an autoscaling group
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: python3.8
+      Code:
+        S3Bucket: !Ref LambdasBucketName
+        S3Key: _lambda_releases/autoscaling_values.zip
+
+  AutoscalingValues:
+    Type: Custom::AutoscalingInstances
+    Properties:
+      ServiceToken: !GetAtt AutoscalingValuesFunction.Arn
+      DesiredInstances: !Ref WorkersCount
+
   JenkinsWorkersLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
@@ -93,8 +129,9 @@ Resources:
     Properties:
       VPCZoneIdentifier: !Ref SubnetIds
       LaunchConfigurationName: !Ref JenkinsWorkersLaunchConfig
-      MaxSize: !Ref WorkersCount
-      MinSize: !Ref WorkersCount
+      MaxSize: !GetAtt AutoscalingValues.Max
+      MinSize: !GetAtt AutoscalingValues.Min
+      DesiredCapacity: !GetAtt AutoscalingValues.Desired
       Tags:
         - Key: Name
           Value: Jenkins-worker

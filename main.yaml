@@ -52,13 +52,14 @@ Resources:
     Properties:
       TemplateURL: !Sub "https://${TemplatesBucket}.s3.amazonaws.com/templates/jenkins-workers.yaml"
       Parameters:
+        LambdasBucketName: !Ref TemplatesBucket
         KeyPairName: !Ref AdminKeyPairName
         VpcId: !GetAtt VPC.Outputs.VpcId
         SubnetIds: !GetAtt VPC.Outputs.SubnetIds
         AssignPublicIp: true
         WorkersSecGroupId: !GetAtt JenkinsMaster.Outputs.WorkersSecGroupId
         MasterPrivateIp: !GetAtt JenkinsMaster.Outputs.MasterPrivateIp
-        WorkersCount: 1
+        WorkersCount: 2
 
 Outputs:
   MasterPublicIp:

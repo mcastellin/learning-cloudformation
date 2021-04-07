@@ -1,7 +1,9 @@
 ---
-BucketName: mycloudformationstorage1234
+BucketName: mycloudformationstorage123
 StackName: MyCompanyStack
 StackTemplateFile: main.yaml
+Capabilities:
+  - CAPABILITY_IAM
 TemplateFiles:
   - templates/vpc.yaml
   - templates/jenkins-master.yaml
@@ -9,3 +11,6 @@ TemplateFiles:
 Parameters:
   AdminKeyPairName: jenkins-admin-key
   NumberOfAZs: 2
+Lambdas:
+  - Path: ./autoscaling_values
+    Name: autoscaling_values
